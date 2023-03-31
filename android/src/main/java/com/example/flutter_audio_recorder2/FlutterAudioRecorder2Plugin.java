@@ -3,19 +3,19 @@ package com.example.flutter_audio_recorder2;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.os.Build.VERSION;
-import android.content.Intent;
-import android.provider.Settings;
 import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
+import android.util.Log;
+import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-
-import android.util.Log;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,9 +24,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.HashMap;
 import java.util.Arrays;
-import java.util.List;
+import java.util.HashMap;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -85,7 +84,10 @@ public class FlutterAudioRecorder2Plugin implements MethodCallHandler, PluginReg
             }
             Log.d(LOG_NAME, "onRequestPermissionsResult -" + granted);
             if (!granted) {
-                showPermissionDialog();
+                Toast.makeText(registrar.context(), "需要提供录音权限，才可以使用录音功能哦~", Toast.LENGTH_SHORT).show();
+                if (_result != null) {
+                    _result.success(false);
+                }
             } else {
                 if (_result != null) {
                     _result.success(granted);
@@ -96,21 +98,18 @@ public class FlutterAudioRecorder2Plugin implements MethodCallHandler, PluginReg
         return false;
     }
 
-    private void showPermissionDialog() {
-        new AlertDialog.Builder(registrar.activity()).setMessage("需要提供录音权限，才可以使用录音功能哦~ 快到设置->应用->权限管理中打开录音权限吧")
+    private void showExplainPermissionDialog() {
+        new AlertDialog.Builder(registrar.activity())
+                .setTitle("权限使用说明")
+                .setMessage("录音权限：用于听力课程中的精听-朗读全文环节，用户可以录制音频朗读全文，并播放自己读的音频。\n若您拒绝授权，将影响上述功能的使用，但不影响知米背单词基本功能使用。")
                 .setPositiveButton("去打开", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
                         dialogInterface.dismiss();
-                        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                        intent.setData(Uri.parse("package:" + registrar.activity().getApplicationContext().getPackageName()));
-                        registrar.activity().startActivity(intent);
-                        if (_result != null) {
-                            _result.success(null);
-                        }
+                        askPermission();
                     }
                 })
-                .setNegativeButton("我就不", new DialogInterface.OnClickListener() {
+                .setNegativeButton("取消", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
                         dialogInterface.dismiss();
@@ -119,6 +118,19 @@ public class FlutterAudioRecorder2Plugin implements MethodCallHandler, PluginReg
                         }
                     }
                 }).create().show();
+    }
+
+    private void askPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                ActivityCompat.requestPermissions(registrar.activity(), new String[]{Manifest.permission.RECORD_AUDIO}, PERMISSIONS_REQUEST_RECORD_AUDIO);
+
+//                Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+//                intent.setData(Uri.parse("package:" + registrar.activity().getApplicationContext().getPackageName()));
+//                registrar.activity().startActivity(intent);
+//                if (_result != null) {
+//                    _result.success(null);
+//                }
+        }
     }
 
     private boolean hasRecordPermission() {
@@ -166,8 +178,7 @@ public class FlutterAudioRecorder2Plugin implements MethodCallHandler, PluginReg
             }
         } else {
             Log.d(LOG_NAME, "handleHasPermission false");
-
-            ActivityCompat.requestPermissions(registrar.activity(), new String[]{Manifest.permission.RECORD_AUDIO}, PERMISSIONS_REQUEST_RECORD_AUDIO);
+            showExplainPermissionDialog();
         }
 
     }
